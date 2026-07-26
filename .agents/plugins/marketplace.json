@@ -1,0 +1,20 @@
+{
+  "name": "secuway-vpn",
+  "interface": {
+    "displayName": "Secuway VPN"
+  },
+  "plugins": [
+    {
+      "name": "secuway-vpn",
+      "source": {
+        "source": "local",
+        "path": "./plugins/secuway-vpn"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

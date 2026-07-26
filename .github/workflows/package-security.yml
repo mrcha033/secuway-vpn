@@ -1,0 +1,183 @@
+name: package-security
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: Exact release tag to embed in deterministic packages
+        required: false
+        type: string
+        default: ""
+      upload_dist:
+        description: Upload the verified dist for a calling release workflow
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Verify exact workflow commit
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Set up pinned Go toolchain
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: portable/go.mod
+          cache-dependency-path: portable/go.sum
+
+      - name: Enforce public-repository workflow boundary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          workflow_dir = Path(".github/workflows")
+          forbidden_runner = "self" + "-hosted"
+          for path in workflow_dir.glob("*.y*ml"):
+              text = path.read_text(encoding="utf-8")
+              if re.search(r"(?m)^\s*runs-on:.*" + re.escape(forbidden_runner), text):
+                  raise SystemExit(f"{path}: self-hosted runner is forbidden")
+              if "tunnel" in path.name.lower():
+                  raise SystemExit(f"{path}: live tunnel workflow is forbidden")
+
+              for line_number, line in enumerate(text.splitlines(), 1):
+                  match = re.search(r"\buses:\s*([^\s#]+)", line)
+                  if not match:
+                      continue
+                  reference = match.group(1)
+                  if reference.startswith("./"):
+                      continue
+                  if not re.fullmatch(r"[^@\s]+@[0-9a-f]{40}", reference):
+                      raise SystemExit(
+                          f"{path}:{line_number}: action is not pinned to a full SHA"
+                      )
+          PY
+
+      - name: Reject private-key and credential material
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          tracked = subprocess.check_output(
+              ["git", "ls-files", "-z"],
+          ).split(b"\0")
+          patterns = (
+              b"-----BEGIN " + b"PRIVATE KEY-----",
+              b"-----BEGIN RSA " + b"PRIVATE KEY-----",
+              b"-----BEGIN EC " + b"PRIVATE KEY-----",
+              b"-----BEGIN OPENSSH " + b"PRIVATE KEY-----",
+          )
+          forbidden_suffixes = {".ovpn", ".p12", ".pfx"}
+          for raw in tracked:
+              if not raw:
+                  continue
+              path = Path(raw.decode())
+              if path.suffix.lower() in forbidden_suffixes:
+                  raise SystemExit(f"forbidden credential/profile file: {path}")
+              data = path.read_bytes()
+              if any(pattern in data for pattern in patterns):
+                  raise SystemExit(f"private-key material found: {path}")
+          PY
+
+      - name: Validate package, native, and security contracts
+        run: |
+          python3 -B tests/test_secuway_vpn.py
+          python3 -B tests/test_secuway_windows_security.py
+
+      - name: Test and vet portable CLI
+        working-directory: portable
+        run: |
+          go test ./... -count=1
+          go test -race ./... -count=1
+          go vet ./...
+
+      - name: Build deterministic release packages twice
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          PRIMARY_DIST: ${{ runner.temp }}/secuway-dist-primary
+          SECONDARY_DIST: ${{ runner.temp }}/secuway-dist-secondary
+        run: |
+          args=()
+          if [[ -n "$RELEASE_TAG" ]]; then
+            args+=(--tag "$RELEASE_TAG")
+          fi
+          python3 -B scripts/build_release_packages.py \
+            "${args[@]}" \
+            --output-dir "$PRIMARY_DIST"
+          python3 -B scripts/build_release_packages.py \
+            "${args[@]}" \
+            --output-dir "$SECONDARY_DIST"
+          diff -qr "$PRIMARY_DIST" "$SECONDARY_DIST"
+
+      - name: Verify exact dist asset set and checksums
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          PRIMARY_DIST: ${{ runner.temp }}/secuway-dist-primary
+        run: |
+          if [[ -n "$RELEASE_TAG" ]]; then
+            tag="$RELEASE_TAG"
+          else
+            tag="$(
+              python3 -c \
+                'import json; print(json.load(open("release/catalog.json", encoding="utf-8"))["releaseTag"])'
+            )"
+          fi
+          version="${tag#v}"
+          expected="$RUNNER_TEMP/expected-assets.txt"
+          actual="$RUNNER_TEMP/actual-assets.txt"
+          printf '%s\n' \
+            "SHA256SUMS" \
+            "release-manifest.json" \
+            "secuway-vpn-${version}.skill" \
+            "secuway-vpn-${version}.spdx.json" \
+            "secuway-vpn-${version}.zip" \
+            "secuway-vpn-plugin-${version}.zip" \
+            "secuway-vpn-windows-amd64-${version}.zip" \
+            "secuway-vpn-windows-arm64-${version}.zip" |
+            sort > "$expected"
+          find "$PRIMARY_DIST" -maxdepth 1 -type f -printf '%f\n' |
+            sort > "$actual"
+          diff -u "$expected" "$actual"
+          (
+            cd "$PRIMARY_DIST"
+            sha256sum --check SHA256SUMS
+          )
+          python3 - "$PRIMARY_DIST/release-manifest.json" "$tag" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          if manifest.get("releaseTag") != sys.argv[2]:
+              raise SystemExit("release manifest tag mismatch")
+          PY
+
+      - name: Ensure validation did not modify tracked source
+        run: git diff --exit-code
+
+      - name: Upload exact release candidate
+        if: ${{ inputs.upload_dist == true }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: secuway-release-dist-${{ github.sha }}
+          path: ${{ runner.temp }}/secuway-dist-primary/*
+          if-no-files-found: error
+          retention-days: 7

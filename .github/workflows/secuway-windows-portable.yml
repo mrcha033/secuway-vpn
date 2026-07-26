@@ -1,0 +1,127 @@
+name: secuway-windows-portable
+
+# Required checks run unconditionally. Relevant roots include "portable/**",
+# "experiments/windows-ci/**", and
+# "plugins/secuway-vpn/skills/secuway-vpn/**".
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  native-windows:
+    name: Windows ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: amd64
+          - runner: windows-11-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Verify exact workflow commit
+        shell: pwsh
+        run: |
+          $actual = (& git rev-parse HEAD).Trim()
+          if ($actual -ne $env:GITHUB_SHA) {
+            throw "Checkout mismatch: expected $env:GITHUB_SHA, got $actual"
+          }
+
+      - name: Set up pinned Go toolchain
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: portable/go.mod
+          cache-dependency-path: portable/go.sum
+
+      - name: Parse Windows PowerShell entry points
+        shell: pwsh
+        run: |
+          $failed = $false
+          @(
+            Get-ChildItem ./experiments/windows-ci/*.ps1
+            Get-ChildItem ./plugins/secuway-vpn/skills/secuway-vpn/scripts/*.ps1
+          ) |
+            ForEach-Object {
+              $tokens = $null
+              $errors = $null
+              [System.Management.Automation.Language.Parser]::ParseFile(
+                $_.FullName,
+                [ref]$tokens,
+                [ref]$errors
+              ) | Out-Null
+              if ($errors.Count -gt 0) {
+                $failed = $true
+                $errors | ForEach-Object { Write-Error $_.Message }
+              }
+            }
+          if ($failed) { exit 1 }
+
+      - name: Exercise the bundled setup status boundary
+        shell: pwsh
+        run: |
+          $setup = (
+            Resolve-Path `
+              "./plugins/secuway-vpn/skills/secuway-vpn/scripts/Setup-Windows.ps1"
+          ).Path
+          $stdout = Join-Path $env:RUNNER_TEMP "secuway-status-${{ matrix.arch }}.out"
+          $stderr = Join-Path $env:RUNNER_TEMP "secuway-status-${{ matrix.arch }}.err"
+          $statusProcess = Start-Process `
+            -FilePath (Get-Command pwsh -ErrorAction Stop).Source `
+            -ArgumentList @(
+              "-NoLogo",
+              "-NoProfile",
+              "-File",
+              "`"$setup`"",
+              "-Action",
+              "Status"
+            ) `
+            -RedirectStandardOutput $stdout `
+            -RedirectStandardError $stderr `
+            -Wait `
+            -PassThru
+          $exitCode = $statusProcess.ExitCode
+          if ($exitCode -notin @(0, 1)) {
+            throw "Setup status failed unexpectedly with code $exitCode"
+          }
+          $output = @(
+            Get-Content -LiteralPath $stdout -ErrorAction SilentlyContinue
+            Get-Content -LiteralPath $stderr -ErrorAction SilentlyContinue
+          )
+          $json = $output |
+            Where-Object { "$_".TrimStart().StartsWith("{") } |
+            Select-Object -Last 1 |
+            ConvertFrom-Json
+          if ($json.schema -ne "secuway-windows-install-status/v1" -or
+              $json.secrets_printed -ne $false) {
+            throw "Unexpected setup status contract"
+          }
+
+      - name: Native build, tests, DPAPI round trip, and bundle match
+        shell: pwsh
+        run: >
+          ./experiments/windows-ci/Test-Windows.ps1
+          -Phase Portable
+          -ExpectedArch ${{ matrix.arch }}
+
+      - name: Upload architecture-checked CLI evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: secuway-windows-${{ matrix.arch }}-cli-${{ github.sha }}
+          path: build/windows-ci/${{ matrix.arch }}/secuway.exe
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,274 @@
+name: refresh-native-assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full 40-character commit SHA to build as non-published candidates
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  select-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      source_sha: ${{ steps.verify.outputs.source_sha }}
+
+    steps:
+      - name: Require an unambiguous commit SHA
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::source_sha must be a full lowercase commit SHA"
+            exit 1
+          fi
+
+      - name: Check out selected source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+
+      - name: Verify selected source
+        id: verify
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$SOURCE_SHA" ]]; then
+            echo "::error::Checkout mismatch: expected $SOURCE_SHA, got $actual"
+            exit 1
+          fi
+          echo "source_sha=$actual" >> "$GITHUB_OUTPUT"
+
+  cli-candidates:
+    needs: select-source
+    name: CLI candidate ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: amd64
+          - runner: windows-11-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out selected source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.select-source.outputs.source_sha }}
+          persist-credentials: false
+
+      - name: Verify selected source
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ needs.select-source.outputs.source_sha }}
+        run: |
+          $actual = (& git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+            throw "Checkout mismatch: expected $env:SOURCE_SHA, got $actual"
+          }
+
+      - name: Set up pinned Go toolchain
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: portable/go.mod
+          cache-dependency-path: portable/go.sum
+
+      - name: Build and test CLI candidate without bundled comparison
+        shell: pwsh
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+          SOURCE_SHA: ${{ needs.select-source.outputs.source_sha }}
+        run: |
+          $native = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+          $actualArch = switch ($native.ToString().ToUpperInvariant()) {
+            "X64" { "amd64" }
+            "ARM64" { "arm64" }
+            default { throw "Unsupported runner architecture: $native" }
+          }
+          if ($actualArch -ne $env:EXPECTED_ARCH) {
+            throw "Runner mismatch: expected $env:EXPECTED_ARCH, got $actualArch"
+          }
+
+          $output = (
+            New-Item `
+              -ItemType Directory `
+              -Path "./candidate/windows-$actualArch" `
+              -Force
+          ).FullName
+          $binary = Join-Path $output "secuway.exe"
+          Push-Location ./portable
+          try {
+            $env:CGO_ENABLED = "0"
+            $env:GOOS = "windows"
+            $env:GOARCH = $actualArch
+            go test ./internal/store `
+              -run "^TestDPAPIRoundTrip$" `
+              -count=1 `
+              -v
+            if ($LASTEXITCODE -ne 0) { throw "DPAPI test failed" }
+            go test ./... -count=1
+            if ($LASTEXITCODE -ne 0) { throw "Go tests failed" }
+            go build `
+              -buildvcs=false `
+              -trimpath `
+              -ldflags="-s -w -buildid=" `
+              -o "$binary" `
+              ./cmd/secuway
+            if ($LASTEXITCODE -ne 0) { throw "Go build failed" }
+          }
+          finally {
+            Pop-Location
+          }
+
+          $stream = [IO.File]::OpenRead((Resolve-Path $binary))
+          try {
+            $reader = [IO.BinaryReader]::new($stream)
+            if ($reader.ReadUInt16() -ne 0x5A4D) {
+              throw "Candidate is not an MZ executable"
+            }
+            $stream.Position = 0x3C
+            $peOffset = $reader.ReadUInt32()
+            $stream.Position = $peOffset
+            if ($reader.ReadUInt32() -ne 0x00004550) {
+              throw "Candidate has no PE signature"
+            }
+            $machine = $reader.ReadUInt16()
+          }
+          finally {
+            $stream.Dispose()
+          }
+          $expectedMachine = if ($actualArch -eq "amd64") { 0x8664 } else { 0xAA64 }
+          if ($machine -ne $expectedMachine) {
+            throw "PE machine mismatch: $machine"
+          }
+          $version = (& $binary version 2>&1 | Out-String)
+          if ($LASTEXITCODE -ne 0 -or
+              $version -notmatch "windows/$actualArch") {
+            throw "Candidate version output is invalid: $version"
+          }
+          $hash = (
+            Get-FileHash -LiteralPath $binary -Algorithm SHA256
+          ).Hash.ToLowerInvariant()
+          Set-Content `
+            -LiteralPath (Join-Path $output "SHA256SUMS") `
+            -Encoding Ascii `
+            -Value "$hash  secuway.exe"
+          Set-Content `
+            -LiteralPath (Join-Path $output "candidate-source.txt") `
+            -Encoding Ascii `
+            -Value @(
+              "schema=secuway-native-candidate/v1"
+              "candidate_only=true"
+              "published=false"
+              "source_commit=$env:SOURCE_SHA"
+              "target=windows-$actualArch"
+            )
+
+      - name: Upload non-published CLI candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: candidate-secuway-cli-windows-${{ matrix.arch }}-${{ needs.select-source.outputs.source_sha }}
+          path: candidate/windows-${{ matrix.arch }}/*
+          if-no-files-found: error
+          retention-days: 7
+
+  x64-provider-candidate:
+    needs: select-source
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out selected source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.select-source.outputs.source_sha }}
+          persist-credentials: false
+
+      - name: Verify selected source
+        env:
+          SOURCE_SHA: ${{ needs.select-source.outputs.source_sha }}
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+      - name: Build reproducible x64 provider candidate
+        run: ./experiments/windows-x64/build.sh
+
+      - name: Test candidate with official OpenVPN under Wine
+        run: ./experiments/windows-x64/verify-wine.sh
+
+      - name: Mark output as a non-published candidate
+        env:
+          SOURCE_SHA: ${{ needs.select-source.outputs.source_sha }}
+        run: |
+          {
+            echo "candidate_only=true"
+            echo "published=false"
+            echo "source_commit=$SOURCE_SHA"
+          } >> experiments/windows-x64/artifacts/build-manifest.txt
+          (
+            cd experiments/windows-x64/artifacts
+            sha256sum \
+              lea.dll \
+              provider_smoke.exe \
+              build-manifest.txt \
+              runtime-evidence.txt \
+              > SHA256SUMS
+          )
+
+      - name: Upload non-published x64 provider candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: candidate-secuway-provider-windows-amd64-${{ needs.select-source.outputs.source_sha }}
+          path: experiments/windows-x64/artifacts/*
+          if-no-files-found: error
+          retention-days: 7
+
+  arm64-provider-candidate:
+    needs: select-source
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out selected source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.select-source.outputs.source_sha }}
+          persist-credentials: false
+
+      - name: Verify selected source
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ needs.select-source.outputs.source_sha }}
+        run: |
+          $actual = (& git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+            throw "Checkout mismatch: expected $env:SOURCE_SHA, got $actual"
+          }
+
+      - name: Configure ARM64-targeting MSVC
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: amd64_arm64
+
+      - name: Build and natively test provider candidate
+        shell: pwsh
+        run: >
+          ./experiments/windows-arm64/ci/build-and-test.ps1
+          -SkipBundledValidation
+
+      - name: Upload non-published ARM64 provider candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: candidate-secuway-provider-windows-arm64-${{ needs.select-source.outputs.source_sha }}
+          path: experiments/windows-arm64/dist-ci/*
+          if-no-files-found: error
+          retention-days: 7

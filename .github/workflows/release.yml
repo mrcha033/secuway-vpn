@@ -1,0 +1,194 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  package-security:
+    uses: ./.github/workflows/package-security.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+      upload_dist: true
+    permissions:
+      contents: read
+
+  windows-portable:
+    uses: ./.github/workflows/secuway-windows-portable.yml
+    permissions:
+      contents: read
+
+  windows-x64-provider:
+    uses: ./.github/workflows/secuway-windows-x64-provider.yml
+    permissions:
+      contents: read
+
+  windows-arm64-provider:
+    uses: ./.github/workflows/secuway-windows-arm64-provider.yml
+    permissions:
+      contents: read
+
+  publish:
+    needs:
+      - package-security
+      - windows-portable
+      - windows-x64-provider
+      - windows-arm64-provider
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Check out exact tagged source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Enforce exact immutable release contract
+        env:
+          RELEASE_POLICY: ${{ vars.SECUWAY_RELEASE_POLICY }}
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tags must be exact stable semantic versions"
+            exit 1
+          fi
+          if [[ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]]; then
+            echo "::error::Checkout does not match the triggering commit"
+            exit 1
+          fi
+          if [[ "$(git rev-list -n 1 "$GITHUB_REF_NAME")" != "$GITHUB_SHA" ]]; then
+            echo "::error::Release tag does not resolve to the triggering commit"
+            exit 1
+          fi
+          if [[ "$RELEASE_POLICY" != "immutable-v1" ]]; then
+            echo "::error::Configure the release environment and immutable releases first"
+            exit 1
+          fi
+
+      - name: Download exact deterministic dist
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: secuway-release-dist-${{ github.sha }}
+          path: release-dist
+
+      - name: Verify exact dist before attestation
+        id: release_metadata
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          printf 'sbom_path=release-dist/secuway-vpn-%s.spdx.json\n' \
+            "$version" >> "$GITHUB_OUTPUT"
+          expected="$RUNNER_TEMP/expected-assets.txt"
+          actual="$RUNNER_TEMP/actual-assets.txt"
+          printf '%s\n' \
+            "SHA256SUMS" \
+            "release-manifest.json" \
+            "secuway-vpn-${version}.skill" \
+            "secuway-vpn-${version}.spdx.json" \
+            "secuway-vpn-${version}.zip" \
+            "secuway-vpn-plugin-${version}.zip" \
+            "secuway-vpn-windows-amd64-${version}.zip" \
+            "secuway-vpn-windows-arm64-${version}.zip" |
+            sort > "$expected"
+          find release-dist -maxdepth 1 -type f -printf '%f\n' |
+            sort > "$actual"
+          diff -u "$expected" "$actual"
+          (
+            cd release-dist
+            sha256sum --check SHA256SUMS
+          )
+          python3 - release-dist/release-manifest.json "$GITHUB_REF_NAME" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          if manifest.get("releaseTag") != sys.argv[2]:
+              raise SystemExit("release manifest tag mismatch")
+          PY
+
+      - name: Attest all published release assets
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-path: release-dist/*
+
+      - name: Attach SBOM to installable packages
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-path: |
+            release-dist/*.zip
+            release-dist/*.skill
+          sbom-path: ${{ steps.release_metadata.outputs.sbom_path }}
+
+      - name: Create or resume draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          if release_json=$(gh release view "$tag" --json isDraft,isImmutable 2>/dev/null); then
+            if [[ "$(jq -r .isDraft <<<"$release_json")" != "true" ]]; then
+              echo "::error::Refusing to replace an already published release"
+              exit 1
+            fi
+          else
+            gh release create "$tag" \
+              --draft \
+              --verify-tag \
+              --title "$tag" \
+              --generate-notes
+          fi
+          gh release upload "$tag" release-dist/* --clobber
+
+      - name: Verify uploaded draft asset digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF_NAME}" \
+            > "$RUNNER_TEMP/release.json"
+          python3 - "$RUNNER_TEMP/release.json" release-dist <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          release = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          root = Path(sys.argv[2])
+          local = {
+              path.name: "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+              for path in root.iterdir()
+              if path.is_file()
+          }
+          remote = {
+              asset["name"]: asset.get("digest")
+              for asset in release["assets"]
+          }
+          if remote != local:
+              raise SystemExit(
+                  "draft release asset digest mismatch\n"
+                  f"local={local}\nremote={remote}"
+              )
+          PY
+
+      - name: Publish immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          immutable="$(
+            gh release view "$GITHUB_REF_NAME" \
+              --json isDraft,isImmutable \
+              --jq '[.isDraft, .isImmutable] | @tsv'
+          )"
+          if [[ "$immutable" != $'false\ttrue' ]]; then
+            echo "::error::Published release is not immutable: $immutable"
+            exit 1
+          fi

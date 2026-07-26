@@ -1,0 +1,8 @@
+*.pdf binary
+*.zip binary
+*.skill binary
+*.exe binary
+*.dll binary
+scripts/*.py text eol=lf
+release/*.json text eol=lf
+plugins/secuway-vpn/skills/secuway-vpn/licenses/*/* -diff

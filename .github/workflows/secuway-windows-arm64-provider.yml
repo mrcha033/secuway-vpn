@@ -1,0 +1,51 @@
+name: secuway-windows-arm64-provider
+
+# Required checks run unconditionally. Relevant roots include
+# "src/lea_provider.cpp", "experiments/windows-arm64/**", and
+# "plugins/secuway-vpn/skills/secuway-vpn/assets/**".
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Verify exact workflow commit
+        shell: pwsh
+        run: |
+          $actual = (& git rev-parse HEAD).Trim()
+          if ($actual -ne $env:GITHUB_SHA) {
+            throw "Checkout mismatch: expected $env:GITHUB_SHA, got $actual"
+          }
+
+      - name: Configure ARM64-targeting MSVC
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: amd64_arm64
+
+      - name: Build against OpenVPN's pinned OpenSSL and run native tests
+        shell: pwsh
+        run: ./experiments/windows-arm64/ci/build-and-test.ps1
+
+      - name: Upload validated provider evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: secuway-lea-windows-arm64-${{ github.sha }}
+          path: experiments/windows-arm64/dist-ci/*
+          if-no-files-found: error
+          retention-days: 7

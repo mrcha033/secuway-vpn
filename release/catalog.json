@@ -1,0 +1,33 @@
+{
+  "schema": "secuway-vpn-release-catalog/v1",
+  "product": {
+    "name": "secuway-vpn",
+    "version": "0.4.0",
+    "license": "MIT",
+    "homepage": "https://github.com/mrcha033/secuway-vpn",
+    "repository": "https://github.com/mrcha033/secuway-vpn"
+  },
+  "plugin": {
+    "name": "secuway-vpn",
+    "version": "0.4.0",
+    "marketplace": "secuway-vpn",
+    "canonicalSkillPath": "plugins/secuway-vpn/skills/secuway-vpn"
+  },
+  "releaseTag": "v0.4.0",
+  "spdxCreated": "2026-07-26T23:00:00Z",
+  "artifacts": {
+    "standaloneZip": "secuway-vpn-0.4.0.zip",
+    "standaloneSkill": "secuway-vpn-0.4.0.skill",
+    "pluginZip": "secuway-vpn-plugin-0.4.0.zip",
+    "windowsAmd64Zip": "secuway-vpn-windows-amd64-0.4.0.zip",
+    "windowsArm64Zip": "secuway-vpn-windows-arm64-0.4.0.zip",
+    "spdxSbom": "secuway-vpn-0.4.0.spdx.json"
+  },
+  "provenance": {
+    "kind": "imported-and-normalized",
+    "repository": "https://github.com/mrcha033/skills",
+    "commit": "4e9b843bfcf434be9d76829355f0eee34939bc41",
+    "path": "skills/secuway-vpn",
+    "note": "The canonical skill tree was imported from this commit, then normalized for the independent repository and rebuilt at product version 0.4.0."
+  }
+}

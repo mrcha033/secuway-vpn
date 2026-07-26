@@ -1,0 +1,47 @@
+{
+  "schema": "secuway-windows-assets/v1",
+  "version": "0.4.0",
+  "source": {
+    "repository": "https://github.com/mrcha033/secuway-vpn",
+    "go_version": "1.25.4",
+    "provider_source_sha256": "8b0634accd40eef78eb21c8522fafe26c9c1061f724a58f304595b5a4e65f6ad",
+    "provider_smoke_source_sha256": "96df918773260b8af1bd8aa1a3d8123ca49b60365234dda5281b7847f0549a06"
+  },
+  "openvpn": {
+    "version": "2.7.5-I001",
+    "amd64": {
+      "url": "https://swupdate.openvpn.org/community/releases/OpenVPN-2.7.5-I001-amd64.msi",
+      "sha256": "20a9b2831cc3be26c250caf60891c230f3bf3e1e7bd6e17b4e182f166026377a"
+    },
+    "arm64": {
+      "url": "https://build.openvpn.net/downloads/releases/OpenVPN-2.7.5-I001-arm64.msi",
+      "sha256": "425d0b87651a7c58e3f8e6ffed0fa0b7d6f5fc45d51b654a337e8bda1b2dd211"
+    }
+  },
+  "assets": {
+    "windows-amd64/secuway.exe": {
+      "bytes": 6719488,
+      "sha256": "cf2389b814029d96802c9fa0192edc4913249f88f70ae6fdd948d5edfa8b7f0a"
+    },
+    "windows-amd64/lea.dll": {
+      "bytes": 6529482,
+      "sha256": "7cacedc52a078c4a177b483af59e921da2deda9324fdcc3763922a1b293c7171"
+    },
+    "windows-amd64/provider_smoke.exe": {
+      "bytes": 253705,
+      "sha256": "728746d2f8badf69606a4b8b7fb9e9ede9cc061974ce2471b4f8239b9946e848"
+    },
+    "windows-arm64/secuway.exe": {
+      "bytes": 6152192,
+      "sha256": "b88cd1b4ae9e52da8012f7bf22379bfb3567f4ae774e1980adf67bf81c9bd1c7"
+    },
+    "windows-arm64/lea.dll": {
+      "bytes": 1558016,
+      "sha256": "187eb3850bc82afa59045768abb4be6b61e576a49ae375e595762b1e8f43ecfd"
+    },
+    "windows-arm64/provider_smoke.exe": {
+      "bytes": 15872,
+      "sha256": "eb8cac13f7726723a2107f40d34913c339e757b9e03922afdd2cd358a89c1f16"
+    }
+  }
+}
