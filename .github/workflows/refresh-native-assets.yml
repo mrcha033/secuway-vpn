@@ -205,6 +205,12 @@ jobs:
       - name: Test candidate with official OpenVPN under Wine
         run: ./experiments/windows-x64/verify-wine.sh
 
+      - name: Restore runner ownership of container outputs
+        run: |
+          sudo chown -R \
+            "$(id -u):$(id -g)" \
+            experiments/windows-x64/artifacts
+
       - name: Mark output as a non-published candidate
         env:
           SOURCE_SHA: ${{ needs.select-source.outputs.source_sha }}
