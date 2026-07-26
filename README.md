@@ -4,6 +4,9 @@ Version `0.4.0` is a portable, independent SecuwaySSL-compatible enrollment and
 OpenVPN launcher for macOS, Linux, and Windows on amd64 and arm64. It does not
 invoke or redistribute vendor client binaries.
 
+This is an unofficial compatibility project. It is not affiliated with or
+endorsed by the VPN vendor or any institution operating a compatible gateway.
+
 The CLI performs the gateway's supported authentication flow, validates the
 returned profile, stores only that server-issued profile, and reuses it until
 the server expires or revokes it. Passwords, OTP values, and OTP seeds are
@@ -16,6 +19,11 @@ never cached.
 | macOS | Login Keychain | `sudo` for OpenVPN |
 | Linux | User-owned mode-0600 file | `sudo` for OpenVPN |
 | Windows | Current-user DPAPI | One-time UAC setup, then OpenVPN Interactive Service |
+
+The protected storage namespaces from the earlier `mrcha033/skills` build are
+retained intentionally so existing enrollment can migrate without exporting a
+profile. Those legacy path names are a compatibility contract, not a runtime
+dependency on the old marketplace.
 
 Windows setup installs the LEA provider beside an official OpenVPN Community
 installation and provisions a per-user profile directory under OpenVPN's

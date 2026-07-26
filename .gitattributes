@@ -3,6 +3,10 @@
 *.skill binary
 *.exe binary
 *.dll binary
+*.c text eol=lf
+*.cpp text eol=lf
+*.go text eol=lf
+*.sh text eol=lf
 scripts/*.py text eol=lf
 release/*.json text eol=lf
 plugins/secuway-vpn/skills/secuway-vpn/licenses/*/* -diff

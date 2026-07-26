@@ -35,6 +35,10 @@ FORBIDDEN_DUPLICATE_WORKFLOW_TEMPLATES = (
 
 
 def main() -> None:
+    attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+    assert "*.c text eol=lf" in attributes
+    assert "*.cpp text eol=lf" in attributes
+
     setup = (SKILL / "scripts" / "Setup-Windows.ps1").read_text()
     transaction = setup.index("$runtimeStateBefore = Get-ExistingRuntimeState")
     doctor = setup.index("& $change.Destination doctor", transaction)

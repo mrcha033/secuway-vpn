@@ -159,20 +159,23 @@ jobs:
           $hash = (
             Get-FileHash -LiteralPath $binary -Algorithm SHA256
           ).Hash.ToLowerInvariant()
-          Set-Content `
-            -LiteralPath (Join-Path $output "SHA256SUMS") `
-            -Encoding Ascii `
-            -Value "$hash  secuway.exe"
-          Set-Content `
-            -LiteralPath (Join-Path $output "candidate-source.txt") `
-            -Encoding Ascii `
-            -Value @(
+          [IO.File]::WriteAllText(
+            (Join-Path $output "SHA256SUMS"),
+            "$hash  secuway.exe`n",
+            [Text.Encoding]::ASCII
+          )
+          $sourceLines = @(
               "schema=secuway-native-candidate/v1"
               "candidate_only=true"
               "published=false"
               "source_commit=$env:SOURCE_SHA"
               "target=windows-$actualArch"
-            )
+          )
+          [IO.File]::WriteAllText(
+            (Join-Path $output "candidate-source.txt"),
+            (($sourceLines -join "`n") + "`n"),
+            [Text.Encoding]::ASCII
+          )
 
       - name: Upload non-published CLI candidate
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
