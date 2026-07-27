@@ -151,8 +151,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api \
-            "repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF_NAME}" \
+          gh release view "$GITHUB_REF_NAME" --json assets \
             > "$RUNNER_TEMP/release.json"
           python3 - "$RUNNER_TEMP/release.json" release-dist <<'PY'
           import hashlib

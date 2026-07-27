@@ -290,7 +290,18 @@ def snapshot(path: Path) -> dict[str, tuple[int, str]]:
     }
 
 
+def validate_release_workflow() -> None:
+    workflow = (
+        ROOT / ".github/workflows/release.yml"
+    ).read_text(encoding="utf-8")
+    assert 'gh release view "$GITHUB_REF_NAME" --json assets' in workflow
+    assert (
+        "releases/tags/${GITHUB_REF_NAME}" not in workflow
+    ), "draft releases are not available through the tag-addressed REST route"
+
+
 def main() -> None:
+    validate_release_workflow()
     catalog = load_catalog()
     context = validate_distribution(catalog)
     try:
