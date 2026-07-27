@@ -28,7 +28,7 @@ from build_release_packages import (  # noqa: E402
 )
 
 NAME = "secuway-vpn"
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 SKILL = ROOT / "plugins/secuway-vpn/skills/secuway-vpn"
 PLUGIN = ROOT / "plugins/secuway-vpn"
 WINDOWS_SCRIPTS = {"Install-WindowsRuntime.ps1", "Setup-Windows.ps1"}

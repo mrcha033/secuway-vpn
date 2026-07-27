@@ -1,13 +1,15 @@
 ---
 name: secuway-vpn
-description: Install, diagnose, enroll, connect, and remove a portable SecuwaySSL-compatible VPN runtime on Windows amd64/arm64, macOS, or Linux while preserving one-time server-approved authentication and strict secret handling. Use when a user asks about Secuway/SecuwaySSL VPN availability, Windows support, OTP and cached enrollment, OpenVPN LEA compatibility, VPN access to a remote or internal host, or errors from the secuway CLI.
+description: Install, diagnose, enroll, connect, and remove a portable SecuwaySSL-compatible VPN runtime on Windows amd64/arm64, macOS, or Linux while preserving one-time server-approved authentication and strict secret handling. Use when a user asks about Secuway/SecuwaySSL VPN availability, Windows support, OTP and cached enrollment, remote or headless server bootstrap through an SSH TTY, unavailable authentication factors, OpenVPN LEA compatibility, VPN access to a remote or internal host, or errors from the secuway CLI.
 ---
 
 # Secuway VPN
 
 Operate the VPN on the host that needs protected-network access. Preserve the
 gateway's authentication policy: cache only a successful server-issued profile,
-never a password, OTP value, or OTP seed.
+never a password, OTP value, or OTP seed. Do not use a different Mac or Windows
+host as an implicit VPN boundary and do not move a protected profile cache
+between hosts.
 
 Read [references/platforms.md](references/platforms.md) before platform setup,
 enrollment, removal, or a live-tunnel claim.
@@ -65,9 +67,31 @@ CLI to prompt locally. Do not request or relay the user's ID, password, app OTP,
 OTP seed, certificate, private key, or profile through chat. Do not place those
 values in arguments, environment variables, files, logs, or automation inputs.
 
+For a remote macOS or Linux host, attach a real terminal to the process:
+
+```sh
+ssh -tt user@host 'secuway doctor && secuway status --json && secuway connect'
+```
+
+Treat `ssh -tt` only as the interactive terminal transport. Have the user type
+each requested factor directly into that attached terminal. Do not run first
+enrollment through a scheduler, background job, redirected stdin, CI secret, or
+agent-controlled automation. On Windows, use a directly visible session for
+the target user, such as Windows Terminal or RDP, so the resulting DPAPI cache
+belongs to that user on that machine.
+
 Reuse `CACHED` only while the server-issued profile remains valid. If the
 gateway requires OTP and no cached profile exists, an OTP cannot be replaced or
-bypassed; report `NEEDS_ENROLLMENT`.
+bypassed. Preserve the CLI state as `NEEDS_ENROLLMENT` and report the task
+outcome as `BLOCKED` with reason `AUTHENTICATION_FACTOR_UNAVAILABLE` when the
+user cannot produce a required factor. Resume only after the user obtains a
+gateway-approved authenticator, recovery path, certificate, or service identity.
+
+Never copy a macOS Keychain item, Windows DPAPI blob, or Linux protected profile
+from another host as a substitute for enrollment. Cross-host portability,
+device binding, and server authorization are not established by local file
+access. Use an operator-issued non-interactive credential only when the gateway
+operator explicitly supports it for that target host.
 
 On Windows, do not use `login --output`: the CLI refuses plaintext profile
 export because POSIX mode `0600` is not a Windows DACL. Use the user-scoped

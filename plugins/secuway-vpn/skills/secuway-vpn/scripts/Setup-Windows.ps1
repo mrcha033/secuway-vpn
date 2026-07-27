@@ -390,7 +390,7 @@ function Complete-UserCliInstall {
     }
     $state = [ordered]@{
         schema = "secuway-windows-cli-install/v1"
-        version = "0.4.0"
+        version = "0.4.1"
         architecture = $Architecture
         target_sid = $Sid
         cli_path = $Change.Destination

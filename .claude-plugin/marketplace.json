@@ -11,7 +11,7 @@
       "displayName": "Secuway VPN",
       "source": "./plugins/secuway-vpn",
       "description": "Install and operate a portable SecuwaySSL-compatible VPN runtime with one-time enrollment.",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "author": {
         "name": "mrcha033"
       },

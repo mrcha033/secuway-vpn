@@ -1,6 +1,6 @@
 # Secuway VPN
 
-Version `0.4.0` is a portable, independent SecuwaySSL-compatible enrollment and
+Version `0.4.1` is a portable, independent SecuwaySSL-compatible enrollment and
 OpenVPN launcher for macOS, Linux, and Windows on amd64 and arm64. It does not
 invoke or redistribute vendor client binaries.
 
@@ -108,7 +108,7 @@ Build every release asset into an empty directory:
 
 ```sh
 python3 -B scripts/build_release_packages.py \
-  --tag v0.4.0 \
+  --tag v0.4.1 \
   --output-dir dist
 ```
 
@@ -119,12 +119,12 @@ credential material.
 
 | Asset | Contract |
 | --- | --- |
-| `secuway-vpn-0.4.0.zip` | Standalone upload with one top-level `secuway-vpn/` directory |
-| `secuway-vpn-0.4.0.skill` | Byte-identical to the standalone ZIP |
-| `secuway-vpn-plugin-0.4.0.zip` | Dual-manifest plugin rooted at `.codex-plugin/`, `.claude-plugin/`, and `skills/` |
-| `secuway-vpn-windows-amd64-0.4.0.zip` | amd64 setup bundle with only amd64 PE assets and their required scripts, manifests, and licenses |
-| `secuway-vpn-windows-arm64-0.4.0.zip` | ARM64 setup bundle with only ARM64 PE assets and their required scripts, manifests, and licenses |
-| `secuway-vpn-0.4.0.spdx.json` | Deterministic SPDX 2.3 SBOM for the project, Go modules, bundled native components, and external runtime dependencies |
+| `secuway-vpn-0.4.1.zip` | Standalone upload with one top-level `secuway-vpn/` directory |
+| `secuway-vpn-0.4.1.skill` | Byte-identical to the standalone ZIP |
+| `secuway-vpn-plugin-0.4.1.zip` | Dual-manifest plugin rooted at `.codex-plugin/`, `.claude-plugin/`, and `skills/` |
+| `secuway-vpn-windows-amd64-0.4.1.zip` | amd64 setup bundle with only amd64 PE assets and their required scripts, manifests, and licenses |
+| `secuway-vpn-windows-arm64-0.4.1.zip` | ARM64 setup bundle with only ARM64 PE assets and their required scripts, manifests, and licenses |
+| `secuway-vpn-0.4.1.spdx.json` | Deterministic SPDX 2.3 SBOM for the project, Go modules, bundled native components, and external runtime dependencies |
 | `release-manifest.json` | Version, provenance, canonical-tree digest, size, and SHA-256 for every release artifact |
 | `SHA256SUMS` | SHA-256 for all release artifacts and `release-manifest.json` |
 
@@ -148,7 +148,7 @@ The skill and Windows payload were imported from
 [`mrcha033/skills`](https://github.com/mrcha033/skills) commit
 `4e9b843bfcf434be9d76829355f0eee34939bc41`, path
 `skills/secuway-vpn`, then normalized for this independent repository and
-rebuilt at product/plugin version `0.4.0`. The release manifest records the
+rebuilt at product/plugin version `0.4.1`. The release manifest records the
 current canonical-tree digest, so later normalization is distinguishable from
 the imported baseline.
 

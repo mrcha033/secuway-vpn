@@ -1,4 +1,4 @@
 interface:
   display_name: "Secuway VPN"
-  short_description: "Portable SecuwaySSL VPN setup and connection"
-  default_prompt: "Use $secuway-vpn to set up and connect this host to a supported SecuwaySSL VPN."
+  short_description: "Cross-platform Secuway VPN enrollment and connection"
+  default_prompt: "Use $secuway-vpn to diagnose this host, perform one-time interactive enrollment, and connect without moving credentials between hosts."

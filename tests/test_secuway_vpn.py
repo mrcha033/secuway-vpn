@@ -14,7 +14,7 @@ from xml.etree import ElementTree
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PRODUCT_VERSION = "0.4.0"
+PRODUCT_VERSION = "0.4.1"
 PLUGIN = ROOT / "plugins" / "secuway-vpn"
 SKILL = PLUGIN / "skills" / "secuway-vpn"
 ASSETS = SKILL / "assets"
@@ -393,6 +393,21 @@ def main() -> None:
     assert "[TODO:" not in skill_text
     assert "licenses/THIRD_PARTY_NOTICES.md" in skill_text
     assert "cannot be replaced or" in reference_text
+    for marker in (
+        "ssh -tt user@host",
+        "AUTHENTICATION_FACTOR_UNAVAILABLE",
+        "outcome as `BLOCKED`",
+        "Never copy a macOS Keychain item",
+        "directly visible session",
+    ):
+        assert marker in skill_text
+    for marker in (
+        "## Enrollment host matrix",
+        "ssh -tt user@host",
+        "task outcome `BLOCKED`",
+        "Do not move protected enrollment between hosts",
+    ):
+        assert marker in reference_text
     assert "OpenVPNServiceInteractive" in runtime_text
     assert "Get-AuthenticodeSignature" in setup_text
     assert "TargetSid" in setup_text

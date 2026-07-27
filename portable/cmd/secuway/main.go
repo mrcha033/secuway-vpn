@@ -20,7 +20,7 @@ import (
 	"github.com/mrcha033/secuway-vpn/portable/internal/store"
 )
 
-const version = "0.4.0"
+const version = "0.4.1"
 const defaultServer = "https://ysvpn.yonsei.ac.kr"
 
 func main() {
