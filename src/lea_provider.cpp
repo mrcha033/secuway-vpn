@@ -349,7 +349,7 @@ int provider_get_params(void *, OSSL_PARAM params[]) {
     OSSL_PARAM *p = OSSL_PARAM_locate(params, OSSL_PROV_PARAM_NAME);
     if (p != nullptr && !OSSL_PARAM_set_utf8_ptr(p, "Secuway Native LEA Provider")) return 0;
     p = OSSL_PARAM_locate(params, OSSL_PROV_PARAM_VERSION);
-    if (p != nullptr && !OSSL_PARAM_set_utf8_ptr(p, "0.4.0")) return 0;
+    if (p != nullptr && !OSSL_PARAM_set_utf8_ptr(p, "0.4.1")) return 0;
     p = OSSL_PARAM_locate(params, OSSL_PROV_PARAM_STATUS);
     if (p != nullptr && !OSSL_PARAM_set_int(p, 1)) return 0;
     return 1;

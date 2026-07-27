@@ -1,10 +1,10 @@
 {
   "schema": "secuway-windows-assets/v1",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "source": {
     "repository": "https://github.com/mrcha033/secuway-vpn",
     "go_version": "1.25.4",
-    "provider_source_sha256": "8b0634accd40eef78eb21c8522fafe26c9c1061f724a58f304595b5a4e65f6ad",
+    "provider_source_sha256": "464d614f36ed4a0e828c95b56f3a5a581a2e77dbcad5d447ef97b629454c9376",
     "provider_smoke_source_sha256": "96df918773260b8af1bd8aa1a3d8123ca49b60365234dda5281b7847f0549a06"
   },
   "openvpn": {
