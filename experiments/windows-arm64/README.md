@@ -47,9 +47,11 @@ Run `.github/workflows/secuway-windows-arm64-provider.yml` on GitHub's
 `windows-11-arm` runner. The root workflow is authoritative; this experiment
 does not carry a duplicate workflow template.
 
-The workflow builds natively with MSVC and the pinned vcpkg baseline, checks
-the official MSI's SHA-256 and Authenticode signature, and runs
-`test-on-windows.ps1`. The native test requires all of the following:
+The workflow builds natively with MSVC tools `14.44.35207`, Windows SDK
+`10.0.26100.0`, and the pinned vcpkg baseline. It fails closed if the hosted
+runner cannot select those exact tool versions, checks the official MSI's
+SHA-256 and Authenticode signature, and runs `test-on-windows.ps1`. The native
+test requires all of the following:
 
 - ARM64 PE headers for the provider, smoke test, official `openssl.exe`, and
   official `openvpn.exe`;

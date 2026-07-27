@@ -20,9 +20,38 @@ $MsiName = 'OpenVPN-2.7.5-I001-arm64.msi'
 $MsiUrl = "https://build.openvpn.net/downloads/releases/$MsiName"
 $MsiSha256 = '425d0b87651a7c58e3f8e6ffed0fa0b7d6f5fc45d51b654a337e8bda1b2dd211'
 $VcpkgCommit = 'a7eda31dc16994fcaa8587982eb833a8695f1b6f'
+$ExpectedMsvcToolsVersion = '14.44.35207'
+$ExpectedWindowsSdkVersion = '10.0.26100.0'
+$AssetManifestPath = Join-Path $SkillRoot 'assets\manifest.json'
+$AssetManifest = Get-Content -LiteralPath $AssetManifestPath -Raw |
+    ConvertFrom-Json
+$ProviderSourceHash = (
+    Get-FileHash -Algorithm SHA256 (
+        Join-Path $RepositoryRoot 'src\lea_provider.cpp'
+    )
+).Hash.ToLowerInvariant()
+$SmokeSourceHash = (
+    Get-FileHash -Algorithm SHA256 (
+        Join-Path $RepositoryRoot 'tests\provider_smoke.c'
+    )
+).Hash.ToLowerInvariant()
+if ($ProviderSourceHash -ne [string]$AssetManifest.source.provider_source_sha256) {
+    throw "provider source hash does not match the asset manifest: $ProviderSourceHash"
+}
+if ($SmokeSourceHash -ne [string]$AssetManifest.source.provider_smoke_source_sha256) {
+    throw "provider smoke source hash does not match the asset manifest: $SmokeSourceHash"
+}
 
 if ($env:PROCESSOR_ARCHITECTURE -ne 'ARM64') {
     throw "native Windows ARM64 runner required; got $env:PROCESSOR_ARCHITECTURE"
+}
+$ActualMsvcToolsVersion = "$env:VCToolsVersion".TrimEnd('\')
+if ($ActualMsvcToolsVersion -ne $ExpectedMsvcToolsVersion) {
+    throw "MSVC toolset mismatch: $ActualMsvcToolsVersion"
+}
+$ActualWindowsSdkVersion = "$env:WindowsSDKVersion".TrimEnd('\')
+if ($ActualWindowsSdkVersion -ne $ExpectedWindowsSdkVersion) {
+    throw "Windows SDK mismatch: $ActualWindowsSdkVersion"
 }
 
 if (Test-Path -LiteralPath $DistRoot) {
@@ -142,9 +171,6 @@ if (-not $SkipBundledValidation) {
     $BundledRoot = Join-Path $SkillRoot 'assets\windows-arm64'
     $BundledProvider = Join-Path $BundledRoot 'lea.dll'
     $BundledSmoke = Join-Path $BundledRoot 'provider_smoke.exe'
-    $AssetManifestPath = Join-Path $SkillRoot 'assets\manifest.json'
-    $AssetManifest = Get-Content -LiteralPath $AssetManifestPath -Raw |
-        ConvertFrom-Json
     foreach ($BundledAsset in @(
             @{
                 Relative = 'windows-arm64/lea.dll'
@@ -201,16 +227,6 @@ if (-not $SkipBundledValidation) {
 
 Copy-Item $Provider (Join-Path $DistRoot 'lea.dll') -Force
 Copy-Item $ProviderSmoke (Join-Path $DistRoot 'provider_smoke.exe') -Force
-$ProviderSourceHash = (
-    Get-FileHash -Algorithm SHA256 (
-        Join-Path $RepositoryRoot 'src\lea_provider.cpp'
-    )
-).Hash.ToLowerInvariant()
-$SmokeSourceHash = (
-    Get-FileHash -Algorithm SHA256 (
-        Join-Path $RepositoryRoot 'tests\provider_smoke.c'
-    )
-).Hash.ToLowerInvariant()
 $BuildManifestLines = @(
     'schema=secuway-windows-arm64-provider-build/v1'
     'target=windows-arm64-msvc'
@@ -220,6 +236,8 @@ $BuildManifestLines = @(
     'cryptopp_vcpkg_port_version=2'
     'cryptopp_vcpkg_git_tree=7a43c1863687809d90c65c768b70eb0add5aacc6'
     'msvc_crt_linkage=static'
+    "msvc_tools_version=$ActualMsvcToolsVersion"
+    "windows_sdk_version=$ActualWindowsSdkVersion"
     'external_toolchain_runtime_imports=false'
     "openvpn_msi_sha256=$MsiSha256"
     "vcpkg_commit=$VcpkgCommit"
@@ -229,10 +247,11 @@ $BuildManifestLines = @(
 )
 $BuildManifestLines += $BundledManifestLines
 $BuildManifestLines += 'vendor_secuway_binaries_redistributed=false'
-Set-Content `
-    -Encoding Ascii `
-    -Path (Join-Path $DistRoot 'build-manifest.txt') `
-    -Value $BuildManifestLines
+[IO.File]::WriteAllText(
+    (Join-Path $DistRoot 'build-manifest.txt'),
+    (($BuildManifestLines -join "`n") + "`n"),
+    [Text.Encoding]::ASCII
+)
 $ProviderHash = (Get-FileHash -Algorithm SHA256 (Join-Path $DistRoot 'lea.dll')).Hash.ToLowerInvariant()
 $SmokeHash = (Get-FileHash -Algorithm SHA256 (Join-Path $DistRoot 'provider_smoke.exe')).Hash.ToLowerInvariant()
 $ManifestHash = (Get-FileHash -Algorithm SHA256 (Join-Path $DistRoot 'build-manifest.txt')).Hash.ToLowerInvariant()
@@ -255,9 +274,10 @@ if (-not $SkipBundledValidation) {
         "$BundledEvidenceHash  bundled-runtime-evidence.txt"
     )
 }
-Set-Content `
-    -Encoding Ascii `
-    -Path (Join-Path $DistRoot 'SHA256SUMS') `
-    -Value $ChecksumLines
+[IO.File]::WriteAllText(
+    (Join-Path $DistRoot 'SHA256SUMS'),
+    (($ChecksumLines -join "`n") + "`n"),
+    [Text.Encoding]::ASCII
+)
 Write-Output "PROVIDER_SHA256=$ProviderHash"
 Write-Output "PROVIDER_SMOKE_SHA256=$SmokeHash"

@@ -134,6 +134,20 @@ def main() -> None:
     assert (
         '"plugins/secuway-vpn/skills/secuway-vpn/assets/**"' in arm64
     )
+    for pinned_input in (
+        "sdk: 10.0.26100.0",
+        "toolset: 14.44",
+        "vsversion: 2022",
+    ):
+        assert pinned_input in arm64
+        assert pinned_input in workflow_text["refresh-native-assets.yml"]
+    arm64_script = (
+        ROOT / "experiments" / "windows-arm64" / "ci" / "build-and-test.ps1"
+    ).read_text()
+    assert "provider source hash does not match the asset manifest" in arm64_script
+    assert "provider smoke source hash does not match the asset manifest" in arm64_script
+    assert "$ExpectedMsvcToolsVersion = '14.44.35207'" in arm64_script
+    assert "$ExpectedWindowsSdkVersion = '10.0.26100.0'" in arm64_script
 
     refresh = workflow_text["refresh-native-assets.yml"]
     trigger = refresh.split("permissions:", 1)[0]

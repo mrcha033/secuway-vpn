@@ -25,7 +25,7 @@
     },
     "windows-amd64/lea.dll": {
       "bytes": 6529482,
-      "sha256": "7cacedc52a078c4a177b483af59e921da2deda9324fdcc3763922a1b293c7171"
+      "sha256": "b5b789516c643db6bfc33daca00bcaa611d3813a144cd56d1ae4e09f245d6e6f"
     },
     "windows-amd64/provider_smoke.exe": {
       "bytes": 253705,
@@ -36,12 +36,12 @@
       "sha256": "b88cd1b4ae9e52da8012f7bf22379bfb3567f4ae774e1980adf67bf81c9bd1c7"
     },
     "windows-arm64/lea.dll": {
-      "bytes": 1558016,
-      "sha256": "187eb3850bc82afa59045768abb4be6b61e576a49ae375e595762b1e8f43ecfd"
+      "bytes": 330752,
+      "sha256": "c925adfae62483105371009f53cbfb03bb0445dc2f13452a7bccba6c26490920"
     },
     "windows-arm64/provider_smoke.exe": {
-      "bytes": 15872,
-      "sha256": "eb8cac13f7726723a2107f40d34913c339e757b9e03922afdd2cd358a89c1f16"
+      "bytes": 144384,
+      "sha256": "d2fc7a87982152bfd229e6f2f02043a75172b7146c0f4437ad81aa5297c787de"
     }
   }
 }

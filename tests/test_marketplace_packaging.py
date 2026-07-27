@@ -189,9 +189,8 @@ def main() -> None:
         "golang.org/x/term",
         "Crypto++",
         "GCC runtime libraries",
-        "LLVM runtime libraries",
         "MinGW-w64 runtime (AMD64 build)",
-        "MinGW-w64 runtime (ARM64 build)",
+        "Microsoft Visual C++ static runtime (ARM64 build)",
     } <= component_names
     for component in licenses["components"]:
         assert set(component["included_in"]) <= EXPECTED_ASSETS

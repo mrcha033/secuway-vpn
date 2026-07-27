@@ -8,7 +8,9 @@ import json
 import struct
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +37,13 @@ def pe_header(path: Path) -> tuple[int, bool]:
     machine = struct.unpack_from("<H", data, pe_offset + 4)[0]
     characteristics = struct.unpack_from("<H", data, pe_offset + 22)[0]
     return machine, bool(characteristics & 0x2000)
+
+
+def pe_linker_version(path: Path) -> tuple[int, int]:
+    data = path.read_bytes()
+    pe_offset = struct.unpack_from("<I", data, 0x3C)[0]
+    optional_header = pe_offset + 24
+    return data[optional_header + 2], data[optional_header + 3]
 
 
 def main() -> None:
@@ -101,17 +110,13 @@ def main() -> None:
             "12.2.0",
             "2ee5e4300186a92ad73f1a1a64cb918dc76c8d67",
         ),
-        "LLVM runtime libraries": (
-            "22.1.8",
-            "ca7933e47d3a3451d81e72ac174dcb5aa28b59d1",
-        ),
         "MinGW-w64 runtime (AMD64 build)": (
             "10.0.0",
             "aa08f56da559016f10336dddca85d59f9bdc9e02",
         ),
-        "MinGW-w64 runtime (ARM64 build)": (
-            "c28e9555bb8800c53449f42a465ad9a5676fce88",
-            "c28e9555bb8800c53449f42a465ad9a5676fce88",
+        "Microsoft Visual C++ static runtime (ARM64 build)": (
+            "14.44.35207",
+            "vs2022-ga-proenterprise",
         ),
     }
     components = {
@@ -139,7 +144,8 @@ def main() -> None:
             path = LICENSES / relative
             assert path.is_file(), f"missing third-party text: {relative}"
             assert sha256(path) == record["sha256"]
-            assert revision in record["source_url"]
+            if not name.startswith("Microsoft Visual C++"):
+                assert revision in record["source_url"]
             assert record["source_url"].startswith("https://")
 
     assert covered_assets == distributed_assets
@@ -169,21 +175,24 @@ def main() -> None:
             assert marker in cli
 
     amd64_provider = (ASSETS / "windows-amd64" / "lea.dll").read_bytes()
-    arm64_provider = (ASSETS / "windows-arm64" / "lea.dll").read_bytes()
+    arm64_provider_path = ASSETS / "windows-arm64" / "lea.dll"
+    arm64_provider = arm64_provider_path.read_bytes()
+    arm64_smoke_path = ASSETS / "windows-arm64" / "provider_smoke.exe"
+    arm64_smoke = arm64_smoke_path.read_bytes()
     assert b"GCC: (GNU) 12 20220819" in amd64_provider
     assert b"Mingw-w64 runtime failure:" in amd64_provider
-    assert b"libc++abi:" in arm64_provider
-    assert b"libunwind:" in arm64_provider
-    assert b"Mingw-w64 runtime failure:" in arm64_provider
+    for obsolete_marker in (
+        b"libc++abi:",
+        b"libunwind:",
+        b"Mingw-w64 runtime failure:",
+    ):
+        assert obsolete_marker not in arm64_provider
+        assert obsolete_marker not in arm64_smoke
+    assert pe_linker_version(arm64_provider_path) == (14, 44)
+    assert pe_linker_version(arm64_smoke_path) == (14, 44)
 
     x64_build = (
         ROOT / "experiments" / "windows-x64" / "build.sh"
-    ).read_text(encoding="utf-8")
-    arm64_build = (
-        ROOT / "experiments" / "windows-arm64" / "build-macos.sh"
-    ).read_text(encoding="utf-8")
-    arm64_versions = (
-        ROOT / "experiments" / "windows-arm64" / "versions.env"
     ).read_text(encoding="utf-8")
     arm64_vcpkg = json.loads(
         (
@@ -215,7 +224,6 @@ def main() -> None:
     ).read_text(encoding="utf-8")
     assert "CRYPTOPP_VERSION=8.9.0" in x64_build
     assert "-static-libgcc -static-libstdc++" in x64_build
-    assert "CRYPTOPP_VERSION=8_9_0" in arm64_versions
     assert arm64_vcpkg["version-string"] == PRODUCT_VERSION
     assert arm64_vcpkg["overrides"] == [
         {
@@ -248,25 +256,70 @@ def main() -> None:
     assert "if (-not $SkipBundledValidation)" in arm64_ci
     assert "'bundled_native_runtime_validated=false'" in arm64_ci
     assert "--filter=blob:none" not in arm64_ci
-    assert "LLVM_MINGW_VERSION=20260616" in arm64_versions
-    assert "-shared -static" in arm64_build
 
-    llvm = components["LLVM runtime libraries"]
-    assert llvm["statically_linked_libraries"] == [
-        "libc++",
-        "libc++abi",
-        "libunwind",
-        "compiler-rt",
+    microsoft = components[
+        "Microsoft Visual C++ static runtime (ARM64 build)"
     ]
-    assert llvm["build_toolchain"] == {
-        "name": "llvm-mingw",
-        "release": "20260616",
-        "source_url": "https://github.com/mstorsjo/llvm-mingw",
-        "revision": "170b7e1ec4ad1d9264e6ba320cd4d02f96299c60",
-        "archive_sha256": (
-            "2cab02a2e964bd4aae981150a45985d07c657cfa8d244959eb9e2dcc5eedd7b1"
-        ),
+    assert microsoft["license"] == (
+        "LicenseRef-Microsoft-Visual-Studio-Enterprise-2022"
+    )
+    assert microsoft["license_name"] == (
+        "Microsoft Visual Studio Enterprise 2022 Software License Terms"
+    )
+    assert microsoft["source_url"] == (
+        "https://visualstudio.microsoft.com/license-terms/"
+        "vs2022-ga-proenterprise/"
+    )
+    assert microsoft["terms_url"] == (
+        "https://visualstudio.microsoft.com/wp-content/uploads/2021/11/"
+        "Visual-Studio-2022-Enterprise-Professional-License-EN.docx"
+    )
+    assert microsoft["redistribution_url"] == (
+        "https://learn.microsoft.com/en-us/visualstudio/releases/2022/"
+        "redistribution"
+    )
+    assert microsoft["crt_documentation_url"] == (
+        "https://learn.microsoft.com/en-us/cpp/c-runtime-library/"
+        "crt-library-features?view=msvc-170"
+    )
+    assert microsoft["build_toolchain"] == {
+        "name": "Microsoft Visual C++ v143",
+        "github_runner": "windows-11-arm",
+        "github_runner_image_version": "20260719.114.1",
+        "visual_studio_edition": "Enterprise",
+        "visual_studio_version": "17.14.36",
+        "vctools_version": "14.44.35207",
+        "compiler_version": "19.44.35228.0",
+        "linker_version": "14.44",
+        "windows_sdk_version": "10.0.26100.0",
+        "runtime_linkage": "/MT (static)",
     }
+    assert microsoft["static_runtime_scope"] == {
+        "windows-arm64/lea.dll": [
+            "libcmt.lib",
+            "libvcruntime.lib",
+            "libucrt.lib",
+            "libcpmt.lib",
+        ],
+        "windows-arm64/provider_smoke.exe": [
+            "libcmt.lib",
+            "libvcruntime.lib",
+            "libucrt.lib",
+        ],
+    }
+    microsoft_terms = (
+        LICENSES
+        / "microsoft"
+        / "Visual-Studio-2022-Enterprise-Professional-License-EN.docx"
+    )
+    assert sha256(microsoft_terms) == (
+        "9c0cd52b20db9d081854c75bd1b50c75514b8f8cb09c8cad15e89d90b97b5bf3"
+    )
+    with zipfile.ZipFile(microsoft_terms) as archive:
+        terms_xml = archive.read("word/document.xml")
+    terms_text = "".join(ElementTree.fromstring(terms_xml).itertext())
+    assert "MICROSOFT VISUAL STUDIO ENTERPRISE 2022" in terms_text
+    assert "DISTRIBUTABLE CODE" in terms_text
 
     required_text = {
         "go/LICENSE": "Copyright 2009 The Go Authors.",
@@ -274,14 +327,7 @@ def main() -> None:
         "cryptopp/LICENSE.txt": "Boost Software License - Version 1.0",
         "gcc/COPYING3": "GNU GENERAL PUBLIC LICENSE",
         "gcc/COPYING.RUNTIME": "GCC RUNTIME LIBRARY EXCEPTION",
-        "llvm/LICENSE.TXT": (
-            "The LLVM Project is under the Apache License v2.0 "
-            "with LLVM Exceptions"
-        ),
         "mingw-w64/amd64-COPYING.MinGW-w64-runtime.txt": (
-            "MinGW-w64 runtime licensing"
-        ),
-        "mingw-w64/arm64-COPYING.MinGW-w64-runtime.txt": (
             "MinGW-w64 runtime licensing"
         ),
     }
@@ -302,10 +348,12 @@ def main() -> None:
         "Go 1.25.4",
         "Crypto++ 8.9.0",
         "GCC 12.2.0",
-        "LLVM 22.1.8",
-        "libc++abi",
-        "libunwind",
         "MinGW-w64 10.0.0",
+        "Visual Studio 2022 Enterprise `17.14.36`",
+        "VCTools `14.44.35207`",
+        "MSVC `19.44.35228.0`",
+        "SDK `10.0.26100.0`",
+        "`/MT`",
         "OpenVPN Community `2.7.5-I001`",
         "redistributed in this skill",
     ):

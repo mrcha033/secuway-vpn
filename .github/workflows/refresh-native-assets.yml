@@ -267,6 +267,9 @@ jobs:
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
         with:
           arch: amd64_arm64
+          sdk: 10.0.26100.0
+          toolset: 14.44
+          vsversion: 2022
 
       - name: Build and natively test provider candidate
         shell: pwsh

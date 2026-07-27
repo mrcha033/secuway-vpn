@@ -119,48 +119,6 @@
       ]
     },
     {
-      "name": "LLVM runtime libraries",
-      "version": "22.1.8",
-      "license": "Apache-2.0 WITH LLVM-exception",
-      "source_url": "https://github.com/llvm/llvm-project",
-      "revision": "ca7933e47d3a3451d81e72ac174dcb5aa28b59d1",
-      "tag": "llvmorg-22.1.8",
-      "build_toolchain": {
-        "name": "llvm-mingw",
-        "release": "20260616",
-        "source_url": "https://github.com/mstorsjo/llvm-mingw",
-        "revision": "170b7e1ec4ad1d9264e6ba320cd4d02f96299c60",
-        "archive_sha256": "2cab02a2e964bd4aae981150a45985d07c657cfa8d244959eb9e2dcc5eedd7b1"
-      },
-      "statically_linked_libraries": [
-        "libc++",
-        "libc++abi",
-        "libunwind",
-        "compiler-rt"
-      ],
-      "included_in": [
-        "windows-arm64/lea.dll",
-        "windows-arm64/provider_smoke.exe"
-      ],
-      "files": [
-        {
-          "path": "llvm/LICENSE.TXT",
-          "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee",
-          "source_url": "https://raw.githubusercontent.com/llvm/llvm-project/ca7933e47d3a3451d81e72ac174dcb5aa28b59d1/LICENSE.TXT"
-        },
-        {
-          "path": "llvm/libcxx-CREDITS.TXT",
-          "sha256": "054e099bf5954c8821b880f5751d2fbf221bf43cf7c57ac1c2c5ff6263d6d9c3",
-          "source_url": "https://raw.githubusercontent.com/llvm/llvm-project/ca7933e47d3a3451d81e72ac174dcb5aa28b59d1/libcxx/CREDITS.TXT"
-        },
-        {
-          "path": "llvm/compiler-rt-CREDITS.TXT",
-          "sha256": "a9901f47a089da41e4690682d00ce4cedaa2baf41fedbe79beee366d43ac2461",
-          "source_url": "https://raw.githubusercontent.com/llvm/llvm-project/ca7933e47d3a3451d81e72ac174dcb5aa28b59d1/compiler-rt/CREDITS.TXT"
-        }
-      ]
-    },
-    {
       "name": "MinGW-w64 runtime (AMD64 build)",
       "version": "10.0.0",
       "package_version": "10.0.0-3",
@@ -181,20 +139,49 @@
       ]
     },
     {
-      "name": "MinGW-w64 runtime (ARM64 build)",
-      "version": "c28e9555bb8800c53449f42a465ad9a5676fce88",
-      "license": "MinGW-w64 runtime notices",
-      "source_url": "https://github.com/mingw-w64/mingw-w64",
-      "revision": "c28e9555bb8800c53449f42a465ad9a5676fce88",
+      "name": "Microsoft Visual C++ static runtime (ARM64 build)",
+      "version": "14.44.35207",
+      "license": "LicenseRef-Microsoft-Visual-Studio-Enterprise-2022",
+      "license_name": "Microsoft Visual Studio Enterprise 2022 Software License Terms",
+      "source_url": "https://visualstudio.microsoft.com/license-terms/vs2022-ga-proenterprise/",
+      "revision": "vs2022-ga-proenterprise",
+      "terms_url": "https://visualstudio.microsoft.com/wp-content/uploads/2021/11/Visual-Studio-2022-Enterprise-Professional-License-EN.docx",
+      "redistribution_url": "https://learn.microsoft.com/en-us/visualstudio/releases/2022/redistribution",
+      "crt_documentation_url": "https://learn.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features?view=msvc-170",
+      "build_toolchain": {
+        "name": "Microsoft Visual C++ v143",
+        "github_runner": "windows-11-arm",
+        "github_runner_image_version": "20260719.114.1",
+        "visual_studio_edition": "Enterprise",
+        "visual_studio_version": "17.14.36",
+        "vctools_version": "14.44.35207",
+        "compiler_version": "19.44.35228.0",
+        "linker_version": "14.44",
+        "windows_sdk_version": "10.0.26100.0",
+        "runtime_linkage": "/MT (static)"
+      },
+      "static_runtime_scope": {
+        "windows-arm64/lea.dll": [
+          "libcmt.lib",
+          "libvcruntime.lib",
+          "libucrt.lib",
+          "libcpmt.lib"
+        ],
+        "windows-arm64/provider_smoke.exe": [
+          "libcmt.lib",
+          "libvcruntime.lib",
+          "libucrt.lib"
+        ]
+      },
       "included_in": [
         "windows-arm64/lea.dll",
         "windows-arm64/provider_smoke.exe"
       ],
       "files": [
         {
-          "path": "mingw-w64/arm64-COPYING.MinGW-w64-runtime.txt",
-          "sha256": "1db8da07b436c68833c0673ffee3d9fcb2526047f3820b81661865dfedc79a1f",
-          "source_url": "https://raw.githubusercontent.com/mingw-w64/mingw-w64/c28e9555bb8800c53449f42a465ad9a5676fce88/COPYING.MinGW-w64-runtime/COPYING.MinGW-w64-runtime.txt"
+          "path": "microsoft/Visual-Studio-2022-Enterprise-Professional-License-EN.docx",
+          "sha256": "9c0cd52b20db9d081854c75bd1b50c75514b8f8cb09c8cad15e89d90b97b5bf3",
+          "source_url": "https://visualstudio.microsoft.com/wp-content/uploads/2021/11/Visual-Studio-2022-Enterprise-Professional-License-EN.docx"
         }
       ]
     }
