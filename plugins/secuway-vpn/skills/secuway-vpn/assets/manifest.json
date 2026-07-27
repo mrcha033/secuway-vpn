@@ -21,11 +21,11 @@
   "assets": {
     "windows-amd64/secuway.exe": {
       "bytes": 6719488,
-      "sha256": "cf2389b814029d96802c9fa0192edc4913249f88f70ae6fdd948d5edfa8b7f0a"
+      "sha256": "1c69316773f8324a1e27be33e1d03ae8aeb528ce3b8851cacf6a884268f5fe1c"
     },
     "windows-amd64/lea.dll": {
       "bytes": 6529482,
-      "sha256": "b5b789516c643db6bfc33daca00bcaa611d3813a144cd56d1ae4e09f245d6e6f"
+      "sha256": "cdba0c05331dab1c5def0f198c89644b2b5079222e9337d3c3cb113fb3ae526a"
     },
     "windows-amd64/provider_smoke.exe": {
       "bytes": 253705,
@@ -33,11 +33,11 @@
     },
     "windows-arm64/secuway.exe": {
       "bytes": 6152192,
-      "sha256": "b88cd1b4ae9e52da8012f7bf22379bfb3567f4ae774e1980adf67bf81c9bd1c7"
+      "sha256": "b0f75494e1daff6cea6bba285a93581a70fdaf674657423ffac0dab72654e768"
     },
     "windows-arm64/lea.dll": {
       "bytes": 330752,
-      "sha256": "c925adfae62483105371009f53cbfb03bb0445dc2f13452a7bccba6c26490920"
+      "sha256": "b2ebe6dac6f5d77bec51e0f0688aa8d640c78c60d158c15d2a63d356a7ad465f"
     },
     "windows-arm64/provider_smoke.exe": {
       "bytes": 144384,
