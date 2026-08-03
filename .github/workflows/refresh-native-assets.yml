@@ -29,7 +29,7 @@ jobs:
           fi
 
       - name: Check out selected source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
@@ -62,7 +62,7 @@ jobs:
 
     steps:
       - name: Check out selected source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.select-source.outputs.source_sha }}
           persist-credentials: false
@@ -78,7 +78,7 @@ jobs:
           }
 
       - name: Set up pinned Go toolchain
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: portable/go.mod
           cache-dependency-path: portable/go.sum
@@ -178,7 +178,7 @@ jobs:
           )
 
       - name: Upload non-published CLI candidate
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: candidate-secuway-cli-windows-${{ matrix.arch }}-${{ needs.select-source.outputs.source_sha }}
           path: candidate/windows-${{ matrix.arch }}/*
@@ -192,7 +192,7 @@ jobs:
 
     steps:
       - name: Check out selected source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.select-source.outputs.source_sha }}
           persist-credentials: false
@@ -234,7 +234,7 @@ jobs:
           )
 
       - name: Upload non-published x64 provider candidate
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: candidate-secuway-provider-windows-amd64-${{ needs.select-source.outputs.source_sha }}
           path: experiments/windows-x64/artifacts/*
@@ -248,7 +248,7 @@ jobs:
 
     steps:
       - name: Check out selected source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.select-source.outputs.source_sha }}
           persist-credentials: false
@@ -278,7 +278,7 @@ jobs:
           -SkipBundledValidation
 
       - name: Upload non-published ARM64 provider candidate
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: candidate-secuway-provider-windows-arm64-${{ needs.select-source.outputs.source_sha }}
           path: experiments/windows-arm64/dist-ci/*
