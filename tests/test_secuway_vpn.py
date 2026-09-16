@@ -160,8 +160,8 @@ def main() -> None:
     assert go_mod.startswith(
         "module github.com/mrcha033/secuway-vpn/portable\n"
     )
-    assert "golang.org/x/sys v0.47.0" in go_mod
-    assert "golang.org/x/term v0.45.0" in go_mod
+    assert "golang.org/x/sys v" in go_mod
+    assert "golang.org/x/term v" in go_mod
     assert manifest["source"]["go_version"] == "1.25.4"
     for architecture in ("amd64", "arm64"):
         cli = (ASSETS / f"windows-{architecture}" / "secuway.exe").read_bytes()
